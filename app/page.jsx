@@ -6,7 +6,11 @@ export default function Home() {
       <div className="grid-background"></div>  
 
         <HeroSection />
-          
+        <section>
+          <div className="">
+            <h2>Powerful features for your career growth</h2>
+          </div>
+          </section>  
     </div>
   );
 }
