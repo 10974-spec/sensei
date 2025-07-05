@@ -112,7 +112,6 @@ export default function Home() {
                           src={testimonial.image}
                           alt={testimonial.author}
                           className="rounded-full object-cover border-2 border-primary/20"
-                           unoptimized
                         />
                       </div>
                       <div>
