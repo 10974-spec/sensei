@@ -55,3 +55,25 @@ export async function generateQuiz() {
     throw new Error("Failed to generate quiz questions");
   }
 }
+
+export async function saveQuizResult(questions, answers, scores) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("unauthorized");
+
+  const user = await db.user.findUnique({
+    where: {
+      clerkUserId: userId,
+    },
+  });
+
+  if (!user) throw new Error("User not found");
+
+ const questionResults = questions.map((q,index)=>({
+    question:q.question,
+    answer:q.correctAnswer,
+    userAnswer: answers[index],
+    isCorrect: q.correctAnswer === answers[index],
+    explanation: q.explanation,
+ }))
+
+}
