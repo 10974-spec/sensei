@@ -74,6 +74,17 @@ export async function saveQuizResult(questions, answers, scores) {
     userAnswer: answers[index],
     isCorrect: q.correctAnswer === answers[index],
     explanation: q.explanation,
- }))
+ }));
+
+ const wrongAnswers = questionResults.filter((q) => !q.isCorrect);
+
+ if (wrongAnswers.length > 0) {
+    const wrongQuestionsText = wrongAnswers
+        .map(
+            (q) =>
+                `Questions: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer}"`
+        )
+        .join("\n\n");
+ }
 
 }
