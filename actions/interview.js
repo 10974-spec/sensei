@@ -68,23 +68,63 @@ export async function saveQuizResult(questions, answers, scores) {
 
   if (!user) throw new Error("User not found");
 
- const questionResults = questions.map((q,index)=>({
-    question:q.question,
-    answer:q.correctAnswer,
+  const questionResults = questions.map((q, index) => ({
+    question: q.question,
+    answer: q.correctAnswer,
     userAnswer: answers[index],
     isCorrect: q.correctAnswer === answers[index],
     explanation: q.explanation,
- }));
+  }));
 
- const wrongAnswers = questionResults.filter((q) => !q.isCorrect);
+  const wrongAnswers = questionResults.filter((q) => !q.isCorrect);
 
- if (wrongAnswers.length > 0) {
+  let improvementTip = null;
+
+  if (wrongAnswers.length > 0) {
     const wrongQuestionsText = wrongAnswers
-        .map(
-            (q) =>
-                `Questions: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer}"`
-        )
-        .join("\n\n");
- }
+      .map(
+        (q) =>
+          `Questions: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer}"`
+      )
+      .join("\n\n");
+
+    const improvementPrompt = `
+      The user got the following ${user.industry} technical interview questions wrong:
+
+      ${wrongQuestionsText}
+
+      Based on these mistakes, provide a concise, specific improvement tip.
+      Focus on the knowledge gaps revealed by these wrong answers.
+      Keep the response under 2 sentences and make it encouraging.
+      Don't explicitly mention the mistakes, instead focus on what to learn/practice.
+    `;
+
+    try {
+      const result = await model.generateContent(improvementPrompt);
+      const response = result.response;
+      improvementTip = response.text().trim();
+    } catch (error) {
+      console.error("Error generating improvement tip:", error);
+    }
+  }
+
+  try {
+
+    const assessment = await db.assessment.create({
+      data: {
+        userId: user.id,
+        quizScore: scores,
+        questions: questionResults,
+        category: "Technical",
+        improvementTip,
+      }
+    });
+
+    return assessment;
+
+  }catch(error){
+    console.error("Error saving quiz result:", error);
+    throw new Error('Failed to save quiz result');
+  }
 
 }
