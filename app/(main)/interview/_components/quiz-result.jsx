@@ -61,7 +61,7 @@ export default function QuizResult({
       </CardContent>
 
       {!hideStartNew && (
-        <CardFooter>
+        <CardFooter className="pt-4">
           <Button onClick={onStartNew} className="w-full">
             Start New Quiz
           </Button>
