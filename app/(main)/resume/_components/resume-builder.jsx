@@ -13,11 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EntryForm } from "./entry-form";
 import { entriesToMarkdown } from "@/app/lib/helper";
+import MDEditor from "@uiw/react-md-editor";
+import { useUser } from "@clerk/nextjs";
 
 const ResumeBuilder = ({ initialContent }) => {
   const [activeTab, setActiveTab] = useState("edit");
   const [resumeMode, setResumeMode] = useState("preview");
   const [previewContent, setPreviewContent] = useState(initialContent);
+  const { user } = useUser();
 
   const {
     control,
@@ -307,6 +310,15 @@ const ResumeBuilder = ({ initialContent }) => {
             </span>
             </div>
           )}
+
+          <div className="border rounded-lg">
+          <MDEditor
+          value={previewContent} onChange={setPreviewContent}
+          height={800}
+          preview={resumeMode}
+          />
+          </div>
+
         </TabsContent>
       </Tabs>
     </div>
