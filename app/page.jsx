@@ -106,15 +106,14 @@ export default function Home() {
                   <div className="flex flex-col space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
                       <div className="relative h-12 w-12 flex-shrink-0">
-                         <Image
-      src={testimonial.image}
-      alt={testimonial.author}
-      width={96}
-      height={96}
-      className="rounded-full object-cover w-full h-full border-2 border-primary/20"
-      unoptimized={process.env.NODE_ENV !== 'production'} // Only optimize in production
-      priority={index < 3} // Load first 3 images first
-    />
+                        <Image
+                          width={40}
+                          height={40}
+                          src={testimonial.image}
+                          alt={testimonial.author}
+                          className="rounded-full object-cover border-2 border-primary/20"
+                          unoptimized={true}
+                        />
                       </div>
                       <div>
                         <p className="font-semibold">{testimonial.author}</p>
