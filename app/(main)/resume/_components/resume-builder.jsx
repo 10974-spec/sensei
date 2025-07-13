@@ -1,29 +1,35 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { AlertTriangle, Download, Edit, Loader2, Monitor, Save } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { resumeSchema } from "@/app/lib/schema";
-import useFetch from "@/hooks/use-fetch";
-import { saveResume } from "@/actions/resume";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { EntryForm } from "./entry-form";
-import { entriesToMarkdown } from "@/app/lib/helper";
+import {
+  AlertTriangle,
+  Download,
+  Edit,
+  Loader2,
+  Monitor,
+  Save,
+} from "lucide-react";
+import { toast } from "sonner";
 import MDEditor from "@uiw/react-md-editor";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { saveResume } from "@/actions/resume";
+import { EntryForm } from "./entry-form";
+import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
+import { entriesToMarkdown } from "@/app/lib/helper";
+import { resumeSchema } from "@/app/lib/schema";
 import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 
-
-const ResumeBuilder = ({ initialContent }) => {
+export default function ResumeBuilder({ initialContent }) {
   const [activeTab, setActiveTab] = useState("edit");
-  const [resumeMode, setResumeMode] = useState("preview");
   const [previewContent, setPreviewContent] = useState(initialContent);
   const { user } = useUser();
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [resumeMode, setResumeMode] = useState("preview");
 
   const {
     control,
@@ -50,21 +56,32 @@ const ResumeBuilder = ({ initialContent }) => {
     error: saveError,
   } = useFetch(saveResume);
 
+  // Watch form fields for preview updates
   const formValues = watch();
 
   useEffect(() => {
     if (initialContent) setActiveTab("preview");
   }, [initialContent]);
 
-  useEffect(()=>{
-    if (activeTab === "edit"){
+  // Update preview content when form values change
+  useEffect(() => {
+    if (activeTab === "edit") {
       const newContent = getCombinedContent();
       setPreviewContent(newContent ? newContent : initialContent);
     }
+  }, [formValues, activeTab]);
 
-  },[formValues,activeTab])
+  // Handle save result
+  useEffect(() => {
+    if (saveResult && !isSaving) {
+      toast.success("Resume saved successfully!");
+    }
+    if (saveError) {
+      toast.error(saveError.message || "Failed to save resume");
+    }
+  }, [saveResult, saveError, isSaving]);
 
-   const getContactMarkdown = () => {
+  const getContactMarkdown = () => {
     const { contactInfo } = formValues;
     const parts = [];
     if (contactInfo.email) parts.push(`📧 ${contactInfo.email}`);
@@ -93,55 +110,79 @@ const ResumeBuilder = ({ initialContent }) => {
       .join("\n\n");
   };
 
-  const onSubmit = async (data) => {};
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const generatePDF = async () => {
     setIsGenerating(true);
     try {
       const element = document.getElementById("resume-pdf");
-
-    const opt = {
-  margin: [15, 15],
-  filename: "resume.pdf",
-  image: { type: "jpeg", quality: 0.98 },
-  html2canvas: { scale: 2 },
-  jsPDF: { unit: "mm", format: "a4", orientation: "portrait" } // ✅ valid unit
-};
-
+      const opt = {
+        margin: [15, 15],
+        filename: "resume.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      };
 
       await html2pdf().set(opt).from(element).save();
-    }catch(error){
+    } catch (error) {
       console.error("PDF generation error:", error);
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
+    }
+  };
+
+  const onSubmit = async (data) => {
+    try {
+      const formattedContent = previewContent
+        .replace(/\n/g, "\n") // Normalize newlines
+        .replace(/\n\s*\n/g, "\n\n") // Normalize multiple newlines to double newlines
+        .trim();
+
+      console.log(previewContent, formattedContent);
+      await saveResumeFn(previewContent);
+    } catch (error) {
+      console.error("Save error:", error);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div data-color-mode="light" className="space-y-4">
       <div className="flex flex-col md:flex-row justify-between items-center gap-2">
-        <h1 className="font-bold md:text-6xl gradient-title text-5xl">
+        <h1 className="font-bold gradient-title text-5xl md:text-6xl">
           Resume Builder
         </h1>
-
         <div className="space-x-2">
-          <Button variant="destructive">
-            <Save className="h-4 w-4" />
-            Save
+          <Button
+            variant="destructive"
+            onClick={handleSubmit(onSubmit)}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Save
+              </>
+            )}
           </Button>
           <Button onClick={generatePDF} disabled={isGenerating}>
             {isGenerating ? (
               <>
-              <Loader2 className="h-4 w-4 animate-spin"/>
-             Generating PDF...
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating PDF...
               </>
-            ):(
+            ) : (
               <>
-                <Download className="h-4 w-4"/>
+                <Download className="h-4 w-4" />
                 Download PDF
               </>
             )}
-            </Button>
+          </Button>
         </div>
       </div>
 
@@ -150,11 +191,12 @@ const ResumeBuilder = ({ initialContent }) => {
           <TabsTrigger value="edit">Form</TabsTrigger>
           <TabsTrigger value="preview">Markdown</TabsTrigger>
         </TabsList>
+
         <TabsContent value="edit">
-          <form className="space-y-8" onSubmit={handleSubmit(onSubmit)}>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            {/* Contact Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Contact Information</h3>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/50">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Email</label>
@@ -170,13 +212,12 @@ const ResumeBuilder = ({ initialContent }) => {
                     </p>
                   )}
                 </div>
-
-                  <div className="space-y-2">
+                <div className="space-y-2">
                   <label className="text-sm font-medium">Mobile Number</label>
                   <Input
                     {...register("contactInfo.mobile")}
                     type="tel"
-                    placeholder="+254 117 041 805"
+                    placeholder="+1 234 567 8900"
                   />
                   {errors.contactInfo?.mobile && (
                     <p className="text-sm text-red-500">
@@ -184,13 +225,12 @@ const ResumeBuilder = ({ initialContent }) => {
                     </p>
                   )}
                 </div>
-
-                  <div className="space-y-2">
+                <div className="space-y-2">
                   <label className="text-sm font-medium">LinkedIn URL</label>
                   <Input
                     {...register("contactInfo.linkedin")}
                     type="url"
-                    placeholder="https://www.linkedin.com/in/yourprofile"
+                    placeholder="https://linkedin.com/in/your-profile"
                   />
                   {errors.contactInfo?.linkedin && (
                     <p className="text-sm text-red-500">
@@ -198,13 +238,14 @@ const ResumeBuilder = ({ initialContent }) => {
                     </p>
                   )}
                 </div>
-
-                  <div className="space-y-2">
-                  <label className="text-sm font-medium">Twitter/X Profile</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Twitter/X Profile
+                  </label>
                   <Input
                     {...register("contactInfo.twitter")}
                     type="url"
-                    placeholder="https://twitter.com/yourprofile"
+                    placeholder="https://twitter.com/your-handle"
                   />
                   {errors.contactInfo?.twitter && (
                     <p className="text-sm text-red-500">
@@ -212,58 +253,56 @@ const ResumeBuilder = ({ initialContent }) => {
                     </p>
                   )}
                 </div>
-
               </div>
             </div>
 
-             <div className="space-y-4">
+            {/* Summary */}
+            <div className="space-y-4">
               <h3 className="text-lg font-medium">Professional Summary</h3>
               <Controller
                 name="summary"
                 control={control}
-                render={({field}) => (
+                render={({ field }) => (
                   <Textarea
-                  {...field}
-                  className="h-32"
-                  placeholder="write a short summary about your professional background and experience."
-                  error={errors.summary}
+                    {...field}
+                    className="h-32"
+                    placeholder="Write a compelling professional summary..."
+                    error={errors.summary}
                   />
                 )}
               />
               {errors.summary && (
-                    <p className="text-sm text-red-500">
-                      {errors.summary.message}
-                    </p>
-                  )}
-              </div>    
+                <p className="text-sm text-red-500">{errors.summary.message}</p>
+              )}
+            </div>
 
-              <div className="space-y-4">
+            {/* Skills */}
+            <div className="space-y-4">
               <h3 className="text-lg font-medium">Skills</h3>
               <Controller
                 name="skills"
                 control={control}
-                render={({field}) => (
+                render={({ field }) => (
                   <Textarea
-                  {...field}
-                  className="h-32"
-                  placeholder="write a short summary about your skills."
-                  error={errors.skills}
+                    {...field}
+                    className="h-32"
+                    placeholder="List your key skills..."
+                    error={errors.skills}
                   />
                 )}
               />
               {errors.skills && (
-                    <p className="text-sm text-red-500">
-                      {errors.skills.message}
-                    </p>
-                  )}
-              </div>   
+                <p className="text-sm text-red-500">{errors.skills.message}</p>
+              )}
+            </div>
 
-              <div className="space-y-4">
+            {/* Experience */}
+            <div className="space-y-4">
               <h3 className="text-lg font-medium">Work Experience</h3>
               <Controller
                 name="experience"
                 control={control}
-                render={({field}) => (
+                render={({ field }) => (
                   <EntryForm
                     type="Experience"
                     entries={field.value}
@@ -272,19 +311,20 @@ const ResumeBuilder = ({ initialContent }) => {
                 )}
               />
               {errors.experience && (
-                    <p className="text-sm text-red-500">
-                      {errors.experience.message}
-                    </p>
-                  )}
-              </div>  
+                <p className="text-sm text-red-500">
+                  {errors.experience.message}
+                </p>
+              )}
+            </div>
 
-                 <div className="space-y-4">
+            {/* Education */}
+            <div className="space-y-4">
               <h3 className="text-lg font-medium">Education</h3>
               <Controller
                 name="education"
                 control={control}
-                render={({field}) => (
-                      <EntryForm
+                render={({ field }) => (
+                  <EntryForm
                     type="Education"
                     entries={field.value}
                     onChange={field.onChange}
@@ -292,19 +332,20 @@ const ResumeBuilder = ({ initialContent }) => {
                 )}
               />
               {errors.education && (
-                    <p className="text-sm text-red-500">
-                      {errors.education.message}
-                    </p>
-                  )}
-              </div> 
+                <p className="text-sm text-red-500">
+                  {errors.education.message}
+                </p>
+              )}
+            </div>
 
-                 <div className="space-y-4">
+            {/* Projects */}
+            <div className="space-y-4">
               <h3 className="text-lg font-medium">Projects</h3>
               <Controller
                 name="projects"
                 control={control}
-                render={({field}) => (
-                      <EntryForm
+                render={({ field }) => (
+                  <EntryForm
                     type="Project"
                     entries={field.value}
                     onChange={field.onChange}
@@ -312,48 +353,55 @@ const ResumeBuilder = ({ initialContent }) => {
                 )}
               />
               {errors.projects && (
-                    <p className="text-sm text-red-500">
-                      {errors.projects.message}
-                    </p>
-                  )}
-              </div>   
-
+                <p className="text-sm text-red-500">
+                  {errors.projects.message}
+                </p>
+              )}
+            </div>
           </form>
         </TabsContent>
+
         <TabsContent value="preview">
-          <Button variant="link" type="button" 
-          onClick={() => setResumeMode(resumeMode === "preview" ? "edit" : "preview")}
-          className="mb-2">
-           {resumeMode === "preview" ? (
-            <>
-             <Edit className="h-4 w-4"/>
-            Edit Resume
-            </>
-           ): (
-            <>
-              <Monitor className="h-4 w-4"/>
-              Show Preview
-            </>
-           )}
-          </Button>
-          {resumeMode !== "preview" && (
-            <div className="flex p-3 gap-2 items-center border-2 border-yellow-600 text-yellow-600 rounded mb-2"> 
-            <AlertTriangle className="h-5 w-5"/>
-            <span className="text-sm">
-              You will lose edited markdown if you update the form data.
-            </span>
-            </div>
+          {activeTab === "preview" && (
+            <Button
+              variant="link"
+              type="button"
+              className="mb-2"
+              onClick={() =>
+                setResumeMode(resumeMode === "preview" ? "edit" : "preview")
+              }
+            >
+              {resumeMode === "preview" ? (
+                <>
+                  <Edit className="h-4 w-4" />
+                  Edit Resume
+                </>
+              ) : (
+                <>
+                  <Monitor className="h-4 w-4" />
+                  Show Preview
+                </>
+              )}
+            </Button>
           )}
 
+          {activeTab === "preview" && resumeMode !== "preview" && (
+            <div className="flex p-3 gap-2 items-center border-2 border-yellow-600 text-yellow-600 rounded mb-2">
+              <AlertTriangle className="h-5 w-5" />
+              <span className="text-sm">
+                You will lose editied markdown if you update the form data.
+              </span>
+            </div>
+          )}
           <div className="border rounded-lg">
-          <MDEditor
-          value={previewContent} 
-          onChange={setPreviewContent}
-          height={800}
-          preview={resumeMode}
-          />
+            <MDEditor
+              value={previewContent}
+              onChange={setPreviewContent}
+              height={800}
+              preview={resumeMode}
+            />
           </div>
-           <div className="hidden">
+          <div className="hidden">
             <div id="resume-pdf">
               <MDEditor.Markdown
                 source={previewContent}
@@ -363,22 +411,9 @@ const ResumeBuilder = ({ initialContent }) => {
                 }}
               />
             </div>
-            <div className="hidden">
-              <div id="resume-pdf">
-                <MDEditor.Markdown
-                source={previewContent}
-                style={{
-                  background: "white",
-                  color: "black"
-                }}
-                />
-              </div>
-            </div>
-        </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
   );
-};
-
-export default ResumeBuilder;
+}
