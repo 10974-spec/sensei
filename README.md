@@ -67,7 +67,7 @@ Export your polished resume anytime.
 
 1️⃣ **Clone the repo**  
 ```bash
-git clone https://github.com/yourusername/sensai
+git clone https://github.com/10974-spec/sensei
 ```
 
 
