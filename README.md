@@ -68,3 +68,28 @@ Export your polished resume anytime.
 1️⃣ **Clone the repo**  
 ```bash
 git clone https://github.com/yourusername/sensai
+```
+
+
+2️⃣ Install dependencies
+```bash
+npm install
+```
+3️⃣ Add your environment variables
+```bash
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=
+
+DATABASE_URL=
+
+GEMINI_API_KEY =
+```
+4️⃣ Run the development server
+```bash
+npm run dev
+```
+
